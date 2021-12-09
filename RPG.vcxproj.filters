@@ -37,6 +37,9 @@
     <None Include="MapFeatures.csv">
       <Filter>Resource Files</Filter>
     </None>
+    <None Include="PauseMenu.csv">
+      <Filter>Resource Files</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Text Include="MainMenu.csv">
