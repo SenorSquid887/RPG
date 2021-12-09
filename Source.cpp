@@ -102,11 +102,35 @@ coords validMove(coords pPos, coords move, bool tp) { //Only checks valid moves 
 
 			//If there's an obstacle on the x axis, mult by 0. If on y, mult by 0
 
-			move = { move.x * ((map[pPos.y * nGameMapWidth + newPos.x] == 0) ? 1 : 0),move.y * ((map[newPos.y * nGameMapWidth + pPos.x] == 0) ? 1 : 0) };
+			move = { move.x * ((map[pPos.y * nGameMapWidth + newPos.x] != 0) ? 0 : 1),move.y * ((map[newPos.y * nGameMapWidth + pPos.x] != 0) ? 0 : 1) };
+
+			newPos = { pPos.x + move.x, pPos.y + move.y };
+
+			if (map[newPos.y * nGameMapWidth + newPos.x] != 0) {
+				if (map[pPos.y * nGameMapWidth + newPos.x] == 0) {
+					move = { 0,move.y };
+				}
+				else if (map[newPos.y * nGameMapWidth + pPos.x] == 0) {
+					move = { move.x,0 };
+				}
+				else {
+					move = { 0,0 };
+				}
+			}
 
 		}
 
+		//Check for enemy interplacement
+
 		newPos = { pPos.x + move.x, pPos.y + move.y };
+
+		for (int i = 0, j = enemies.size(); i < j; i++) {
+			Enemy& cE = enemies[i];
+			coords ePos = cE.getPos();
+			if (ePos.x == newPos.x && ePos.y == newPos.y) {
+				newPos = pPos;
+			}
+		}
 
 		return newPos;
 	}
@@ -292,8 +316,8 @@ int main()
 				if (enemySpawn.seconds <= 0) {
 					coords newL{ 0,0 };
 					newL = { plrX - 10 + (rand() % 20), plrY - 10 + (rand() % 20) };
-					enemies.push_back(Enemy(validMove(plrPos, newL, true)));
-					enemySpawn.seconds = 5.0;
+					enemies.push_back(Enemy(plr.getLevel(),difficulty,validMove(plrPos, newL, true)));
+					enemySpawn.seconds = 10.0 - (plr.getLevel() / 10);
 				}
 				else {
 					enemySpawn.seconds -= (float) .05;
@@ -303,14 +327,24 @@ int main()
 
 				for (int i = 0, ilen = enemies.size(); i < ilen; i++) {
 					Enemy& cE = enemies[i];
-					if (abs(cE.getPos().x - plr.getPos().x) <= 1 && abs(cE.getPos().y - plr.getPos().y) <= 1) { //Attack check
-						if (plr.checkHit(cE.attack())) {
-							plr.takeDamage(cE.doDamage());
+					if (cE.attackCool() <= 0.0) {
+						if (abs(cE.getPos().x - plr.getPos().x) <= 1 && abs(cE.getPos().y - plr.getPos().y) <= 1) { //Attack check for location
+							if (plr.checkHit(cE.attack())) {
+								plr.takeDamage(cE.doDamage());
+							}
 						}
 					}
 
 					//Move the enemy, no obstacle detection for now.
+					if (cE.moveCool() <= 0.0) {
+						if (abs(cE.getPos().x - plr.getPos().x) <= 10 && abs(cE.getPos().y - plr.getPos().y) <= 10) { //Player detection
+							coords newMove = { (abs(cE.getPos().x - plr.getPos().x) == 0) ? 0 : (cE.getPos().x - plr.getPos().x > 0) ? -1 : 1, (abs(cE.getPos().y - plr.getPos().y) == 0) ? 0 : (cE.getPos().y - plr.getPos().y > 0) ? -1 : 1 };
+							newMove = validMove(cE.getPos(), newMove, false);
+							cE.move((newMove.x == plrPos.x && newMove.y == plrPos.y) ? cE.getPos() : newMove);
+						}
+					}
 
+					cE.tick();
 					
 				}
 
@@ -514,8 +548,12 @@ int main()
 
 	}	
 
+	for (int i = 0, j = enemies.size(); i < j; i++) {
+		enemies.erase(enemies.begin());
+	}
+
 	CloseHandle(hConsole);
-	std::cout << "Game Over!!" << endl;
+ 	std::cout << "Game Over!!" << endl;
 	std::system("pause");
 	return 0;
 }

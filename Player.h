@@ -111,11 +111,14 @@ void Player::tick() {
 
 void Player::gainXP(int i) {
 	xp += i;
-	if (xp >= xpthresh) {
+	while(xp>=xpthresh) {
 		xp -= xpthresh;
 		lvl += 1;
-		xpthresh = (int) (xpthresh * 1.5);
-		hpmax += (lvl * 4);
+		xpthresh = (int)10 + ((25 * lvl * lvl) / 3.0);
+		hpmax += (int) (lvl * 2.0)/(lvl+40);
+		acc = (int) (15 * (lvl / (lvl + 15.0)) + 2);
+		atk += (int) (lvl / 40.0);
+		def = (int) (25 * (lvl / (lvl + 15.0)));
 	}
 }
 
@@ -140,6 +143,7 @@ bool Player::checkHit(int h) {
 
 void Player::takeDamage(int h) {
 	hp -= h;
+	cooldowns.regenCooldown = 10;
 }
 
 bool Player::dead() {

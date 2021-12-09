@@ -31,17 +31,17 @@ public:
 	int giveXP();
 
 	bool dead();
+	float moveCool();
+	float attackCool();
 private:
 	string name;
 	int lvl;
-	int xp;
 	int hpmax;
 	int hp;
 	int speed;
 	int def;
 	int atk;
 	int acc;
-	int damage;
 	coords pos;
 
 	stats modifiers;
@@ -56,7 +56,6 @@ Enemy::~Enemy() {
 Enemy::Enemy() {
 	name = "Test Dummy";
 	lvl = 1;
-	xp = 1;
 	hpmax = 1;
 	hp = hpmax;
 	speed = 0;
@@ -65,14 +64,12 @@ Enemy::Enemy() {
 	pos.y = 0;
 	atk = 0;
 	acc = 0;
-	damage = 0;
 	modifiers = { 0,0,0 };
 }
 
 Enemy::Enemy(coords pPos) {
 	name = "Test Dummy";
 	lvl = 1;
-	xp = 1;
 	hpmax = 1;
 	hp = hpmax;
 	speed = 0;
@@ -81,22 +78,21 @@ Enemy::Enemy(coords pPos) {
 	pos.y = pPos.y;
 	atk = 0;
 	acc = 0;
-	damage = 0;
 	modifiers = { 0,0,0 };
 }
 
-Enemy::Enemy(int cL, int gD, coords pos) {
+Enemy::Enemy(int cL, int gD, coords pPos) {
 	name = "Enemy1";
-	lvl = (gD + (cL / 5)) / 3;
-	xp = lvl * 10;
-	hpmax = lvl * 10;
+	lvl = (int) ((gD+(cL/5.0))/(10.0/cL));
+	hpmax = 3 * lvl + 3;
 	hp = hpmax;
-	speed = 3;
-	def = lvl * (1 + gD);
+	speed = 5;
+	def = 15 * lvl / (lvl + 1);
 	modifiers = { 0,0,0 };
-	atk = cL * gD / 2;
-	acc = (int)(cL * gD / 5);
-	damage = cL * gD;
+	atk = lvl / 5 + 3;
+	acc = 10 * lvl / (lvl + 5);
+	pos = { pPos.x,pPos.y };
+	cooldowns = { 0,0,0 };
 }
 
 void Enemy::move(coords c) {
@@ -135,7 +131,7 @@ void Enemy::takeDamage(int h) {
 int Enemy::attack() {
 	if (cooldowns.attackCooldown <= 0) {
 		cooldowns.attackCooldown = 2.0;
-		return (acc + (rand() % 4));
+		return (acc + (rand() % 20));
 	}
 	return 0;
 }
@@ -145,9 +141,17 @@ int Enemy::doDamage() {
 }
 
 int Enemy::giveXP() {
-	return (int) (lvl * 1.5);
+	return 20*lvl*lvl + 1;
 }
 
 bool Enemy::dead() {
 	return (hp <= 0);
+}
+
+float Enemy::moveCool() {
+	return cooldowns.moveCooldown;
+}
+
+float Enemy::attackCool() {
+	return cooldowns.attackCooldown;
 }
