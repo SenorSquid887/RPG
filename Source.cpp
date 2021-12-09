@@ -4,6 +4,7 @@
 #include <fstream>
 #include <sstream>
 #include <windows.h> 
+#include <cstdlib>
 
 #include "commonData.h"
 #include "Player.h"
@@ -11,6 +12,7 @@
 #include "GUIElement.h"
 
 using namespace std;
+
 
 const chrono::milliseconds tick(25);
 int difficulty;
@@ -176,7 +178,7 @@ int main()
 
 		for (int i = 0; i < objS; i++) { //For every line of the object
 			getline(mfin, input, '\n'); //Read the full line
-			for (int j = 0; j < input.length(); j++) { //For every character in the line
+			for (int j = 0, ilen = input.length(); j < ilen; j++) { //For every character in the line
 				map[(objY + i) * nGameMapWidth + objX + j] = (input[j] == '.') ? 0 : 1; //Add it to the map at (ObjectPosition.x + #line_we're_on, ObjectPosition.y + #character_we've_encountered)
 			}
 		}
@@ -269,7 +271,18 @@ int main()
 				}
 
 				if (type[36] && plr.attackCool() <= 0.0) {
-
+					for (int i = 0, ilen = enemies.size(); i < ilen; i++) {
+						Enemy& cE = enemies[i];
+						if (abs(cE.getPos().x - plr.getPos().x) <= 1 && abs(cE.getPos().y - plr.getPos().y) <= 1) { //If the enemies are within two blocks
+							if (cE.checkHit(plr.attack())) {
+								cE.takeDamage(plr.doDamage());
+								if (cE.dead()) {
+									plr.gainXP(cE.giveXP());
+									enemies.erase(enemies.begin() + i);
+								}
+							}
+						}
+					}
 				}
 
 				//TEMPORARY Enemy spawn every few seconds within 10 blocks of the player
@@ -281,7 +294,22 @@ int main()
 					enemySpawn.seconds = 5.0;
 				}
 				else {
-					enemySpawn.seconds -= .05;
+					enemySpawn.seconds -= (float) .05;
+				}
+				
+				//Enemy tick
+
+				for (int i = 0, ilen = enemies.size(); i < ilen; i++) {
+					Enemy& cE = enemies[i];
+					if (abs(cE.getPos().x - plr.getPos().x) <= 1 && abs(cE.getPos().y - plr.getPos().y) <= 1) {
+						if (plr.checkHit(cE.attack())) {
+							plr.takeDamage(cE.doDamage());
+						}
+					}
+				}
+
+				if (plr.dead()) {
+					break;
 				}
 			}
 			else { //If we're in the pause menu
@@ -355,7 +383,7 @@ int main()
 
 		int eX,eY = 0;
 
-		for (int i = 0; i < enemies.size(); i++) {
+		for (int i = 0, ilen = enemies.size(); i < ilen; i++) {
 			Enemy& cE = enemies[i];
 			ePos = cE.getPos(); //Re-check position each frame
 			eX = ePos.x; //Get integer shorthands for EOA
@@ -407,7 +435,7 @@ int main()
 
 					for (int i = 0; i < objS; i++) { //For each line in the object
 						getline(fin, input, '\n'); //Get the object's display
-						for (int j = 0; j < input.length(); j++) { //For each character in the line
+						for (int j = 0, ilen = input.length(); j < ilen; j++) { //For each character in the line
 
 							//Similar formula to that before, but renders independently.
 							//Adds according to the object's character value.
