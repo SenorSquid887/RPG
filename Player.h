@@ -30,6 +30,12 @@ public:
 	void gainXP(int);
 
 	bool dead();
+
+	string getName();
+	int getLevel();
+
+	string dispHP();
+	string dispXP();
 private:
 	void regen();
 	void playerTick(); //Handles all player stat processes that change. Like regen and cooldowns.
@@ -92,26 +98,37 @@ void Player::addCooldown(statsCool s) {
 }
 
 void Player::tick() {
+	if (cooldowns.regenCooldown <= 0) {
+		if (hp < hpmax) {
+			hp++;
+			cooldowns.regenCooldown = 1.0;
+		}
+	}
 	cooldowns.moveCooldown -= (float) ((cooldowns.moveCooldown <= 0) ? 0 : 0.05);
 	cooldowns.attackCooldown -= (float) ((cooldowns.attackCooldown <= 0) ? 0 : 0.05);
 	cooldowns.regenCooldown -= (float) ((cooldowns.regenCooldown <= 0) ? 0 : 0.05);
 }
 
 void Player::gainXP(int i) {
-	xp += 1;
+	xp += i;
 	if (xp >= xpthresh) {
 		xp -= xpthresh;
 		lvl += 1;
 		xpthresh = (int) (xpthresh * 1.5);
+		hpmax += (lvl * 4);
 	}
 }
 
 int Player::attack() {
-	return acc + (rand() % 10);
+	if (cooldowns.attackCooldown <= 0) {
+		cooldowns.attackCooldown = 1.5;
+		return (acc + (rand() % 4));
+	}
+	return 0;
 }
 
 int Player::doDamage() {
-	return atk;
+	return atk + rand() % 4;
 }
 
 bool Player::checkHit(int h) {
@@ -127,4 +144,20 @@ void Player::takeDamage(int h) {
 
 bool Player::dead() {
 	return (hp <= 0);
+}
+
+string Player::getName() {
+	return name;
+}
+
+int Player::getLevel() {
+	return lvl;
+}
+
+string Player::dispXP() {
+	return (to_string(xp) + " / " + to_string(xpthresh));
+}
+
+string Player::dispHP() {
+	return (to_string(hp) + " / " + to_string(hpmax));
 }

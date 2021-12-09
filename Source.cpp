@@ -272,13 +272,15 @@ int main()
 
 				if (type[36] && plr.attackCool() <= 0.0) {
 					for (int i = 0, ilen = enemies.size(); i < ilen; i++) {
-						Enemy& cE = enemies[i];
+						Enemy cE = enemies[i];
 						if (abs(cE.getPos().x - plr.getPos().x) <= 1 && abs(cE.getPos().y - plr.getPos().y) <= 1) { //If the enemies are within two blocks
 							if (cE.checkHit(plr.attack())) {
 								cE.takeDamage(plr.doDamage());
 								if (cE.dead()) {
 									plr.gainXP(cE.giveXP());
 									enemies.erase(enemies.begin() + i);
+									i--;
+									ilen--;
 								}
 							}
 						}
@@ -301,11 +303,15 @@ int main()
 
 				for (int i = 0, ilen = enemies.size(); i < ilen; i++) {
 					Enemy& cE = enemies[i];
-					if (abs(cE.getPos().x - plr.getPos().x) <= 1 && abs(cE.getPos().y - plr.getPos().y) <= 1) {
+					if (abs(cE.getPos().x - plr.getPos().x) <= 1 && abs(cE.getPos().y - plr.getPos().y) <= 1) { //Attack check
 						if (plr.checkHit(cE.attack())) {
 							plr.takeDamage(cE.doDamage());
 						}
 					}
+
+					//Move the enemy, no obstacle detection for now.
+
+					
 				}
 
 				if (plr.dead()) {
@@ -341,15 +347,49 @@ int main()
 
 		//Draw stat field
 
-			// Stuff goes here
+		for (int y = 0; y < nStatFieldHeight; y++) {
+			for (int x = 0; x < nStatFieldWidth; x++) {
+				statField[y * nStatFieldWidth + x] = ' ';
+			}
+		}
+
+		string select;
+
+			//Render the player's name and lvl
+
+		select = plr.getName() + " LVL " + to_string(plr.getLevel());
+
+		for (int i = 0, ilen = select.length(); i < ilen; i++) {
+			statField[i] = select[i];
+		}
+
+		select = "HP: " + plr.dispHP();
+
+		for (int i = 0, ilen = select.length(); i < ilen; i++) {
+			statField[nStatFieldWidth + i] = select[i];
+		}
+
+		select = "XP: " + plr.dispXP();
+
+		for (int i = 0, ilen = select.length(); i < ilen; i++) {
+			statField[(2 * nStatFieldWidth) + i] = select[i];
+		}
+
+		for (int i = 0; i < nStatFieldWidth; i++) {
+			statField[(3 * nStatFieldWidth) + i] = '_';
+		}
 
 		//Draw side bar field
 
-			// Stuff goes here
+		for (int y = 0; y < nSideBarFieldHeight; y++) {
+			for (int x = 0; x < nSideBarFieldWidth; x++) {
+				sideBarField[y * nSideBarFieldWidth + x] = ' ';
+			}
+		}
 
-		//Draw chat field
-
-			// Stuff goes here
+		for (int y = 0; y < nSideBarFieldHeight; y++) {
+			sideBarField[y * nSideBarFieldWidth] = '|';
+		}
 
 		//Draw play field
 
@@ -398,6 +438,24 @@ int main()
 		screen[(nFieldHeight / 2) * nScreenWidth + (nFieldWidth / 2)] = 'O';
 
 		//Render GUIElements last
+
+		//Render all fields
+
+			//Render stat field
+
+		for (int y = 0; y < nStatFieldHeight; y++) {
+			for (int x = 0; x < nStatFieldWidth; x++) {
+				screen[y * nScreenWidth + x] = statField[y * nStatFieldWidth + x];
+			}
+		}
+
+			//Render side bar field
+
+		for (int y = 0; y < nSideBarFieldHeight; y++) {
+			for (int x = 0; x < nSideBarFieldWidth; x++) {
+				screen[y * nScreenWidth + nFieldWidth + x] = sideBarField[y * nSideBarFieldWidth + x];
+			}
+		}
 
 		for (int i = 0; i < 2; i++) { //For each GUI element
 			GUIElement& cGUI = GUIs[i];

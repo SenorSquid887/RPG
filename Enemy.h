@@ -55,12 +55,12 @@ Enemy::~Enemy() {
 
 Enemy::Enemy() {
 	name = "Test Dummy";
-	lvl = 0;
+	lvl = 1;
 	xp = 1;
 	hpmax = 1;
 	hp = hpmax;
 	speed = 0;
-	def = 0;
+	def = 1;
 	pos.x = 0;
 	pos.y = 0;
 	atk = 0;
@@ -71,12 +71,12 @@ Enemy::Enemy() {
 
 Enemy::Enemy(coords pPos) {
 	name = "Test Dummy";
-	lvl = 0;
+	lvl = 1;
 	xp = 1;
 	hpmax = 1;
 	hp = hpmax;
 	speed = 0;
-	def = 0;
+	def = 1;
 	pos.x = pPos.x;
 	pos.y = pPos.y;
 	atk = 0;
@@ -112,9 +112,9 @@ void Enemy::tick() {
 			cooldowns.regenCooldown = 1;
 		}
 	}
-	cooldowns.attackCooldown -= (float) 0.05;
-	cooldowns.moveCooldown -= (float) 0.05;
-	cooldowns.regenCooldown -= (float) 0.05;
+	cooldowns.moveCooldown -= (float)((cooldowns.moveCooldown <= 0) ? 0 : 0.05);
+	cooldowns.attackCooldown -= (float)((cooldowns.attackCooldown <= 0) ? 0 : 0.05);
+	cooldowns.regenCooldown -= (float)((cooldowns.regenCooldown <= 0) ? 0 : 0.05);
 }
 
 coords Enemy::getPos() {
@@ -129,11 +129,15 @@ bool Enemy::checkHit(int h) {
 }
 
 void Enemy::takeDamage(int h) {
-	hp -= hpmax;
+	hp -= h;
 }
 
 int Enemy::attack() {
-	return acc + (rand() % 10);
+	if (cooldowns.attackCooldown <= 0) {
+		cooldowns.attackCooldown = 2.0;
+		return (acc + (rand() % 4));
+	}
+	return 0;
 }
 
 int Enemy::doDamage() {
