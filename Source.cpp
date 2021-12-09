@@ -5,15 +5,9 @@
 #include <sstream>
 #include <windows.h> 
 
-//#include <thread>
-//#include <chrono>
-
 #include "commonData.h"
 #include "Player.h"
-#include "chatLog.h"
 #include "Enemy.h"
-#include "Object.h"
-#include "Item.h"
 #include "GUIElement.h"
 
 using namespace std;
@@ -39,6 +33,8 @@ int nChatFieldHeight = 5;
 int nGameMapWidth = 200;
 int nGameMapHeight = 200;
 
+const int textSize = 13;
+
 unsigned char* pField = nullptr; //Play field
 unsigned char* statField = nullptr; //Player stats field
 unsigned char* sideBarField = nullptr; //Side bar field
@@ -46,33 +42,77 @@ unsigned char* chatField = nullptr; //Chat field
 unsigned char* map = nullptr; //The play map
 
 vector<Enemy> enemies; //All enemies in-game
-vector<GUIElement> GUIs; //All GUI Elements that may be used
 
-bool validMove(coords pPos, coords move, bool tp) { //Only checks valid moves on the map.
+coords GUIPos = { 0,0 };
+coords GUISize = { nScreenWidth,nScreenHeight };
+GUIElement GUIs[2] = { GUIElement("MainMenu", true, GUIPos, GUISize), GUIElement("PauseMenu", false, GUIPos, GUISize) };//All GUI Elements that may be used
+
+coords validMove(coords pPos, coords move, bool tp) { //Only checks valid moves on the map.
 
 	//Check that the player is moving within map bounds and not onto an X
 	//If the player is teleporting
 
+	
+
 	if (tp) {
-		if (map[move.y * nGameMapWidth + move.x] != '.' || move.x < 0 || move.x >= nGameMapWidth || move.y < 0 || move.y >= nGameMapHeight) {
-			return false;
+		if (move.x >= 0 && move.x < nGameMapWidth && move.y >= 0 && move.y < nGameMapHeight) {
+			if (map[move.y * nGameMapWidth + move.x] == 0) {
+				return move;
+			}
+			else {
+				move.x = (map[move.y * nGameMapWidth + pPos.x] == 0) ? pPos.x : move.x;
+				move.y = (map[pPos.y * nGameMapWidth + move.x] == 0) ? pPos.y : move.y;
+				return move;
+			}
+		}
+		else {
+			move.x = (move.x >= 0 && move.x < nGameMapWidth) ? move.x : ((move.x < 0) ? 0 : nGameMapWidth);
+			move.y = (move.y >= 0 && move.y < nGameMapHeight) ? move.y : ((move.y < 0) ? 0 : nGameMapHeight);
+
+			if (map[move.y * nGameMapWidth + move.x] == 0) {
+				return move;
+			}
+			else {
+				do {
+					move.x += 1;
+					move.y += 1;
+				} while (map[move.y * nGameMapWidth + move.x] != 0);
+			}
+			return move;
 		}
 	}
 	else {
-		coords newPos = { pPos.x + move.x, pPos.y + move.y };
 
-		//If we aren't moving onto an empty space, or out of the map
+		coords newPos = { pPos.x + move.x, pPos.y + move.y }; //Get the coordinates the player wants to move to
 
-		if (map[newPos.y * nGameMapWidth + newPos.x] == 1 || newPos.x < 0 || newPos.x >= nGameMapWidth || newPos.y < 0 || newPos.y >= nGameMapHeight) {
-			return false;
+		if (newPos.x < 0 || newPos.x >= nGameMapWidth || newPos.y < 0 || newPos.y >= nGameMapHeight) { // Check for which way the player going out of bounds
+			if (newPos.x < 0 || newPos.x >= nGameMapWidth) {
+				move.x = 0;
+			}
+			if (newPos.y < 0 || newPos.y >= nGameMapHeight) {
+				move.y = 0;
+			}
+		} //Should set the player's new position on the fringe of the map
+
+		newPos = { pPos.x + move.x, pPos.y + move.y };
+
+		if (map[newPos.y * nGameMapWidth + newPos.x] != 0) { //If we've hit a non-empty space
+
+			//If there's an obstacle on the x axis, mult by 0. If on y, mult by 0
+
+			move = { move.x * ((map[pPos.y * nGameMapWidth + newPos.x] == 0) ? 1 : 0),move.y * ((map[newPos.y * nGameMapWidth + pPos.x] == 0) ? 1 : 0) };
+
 		}
+
+		newPos = { pPos.x + move.x, pPos.y + move.y };
+
+		return newPos;
 	}
-	
-	return true;
 }
 
 int main()
 {
+	srand(time(NULL));
 
 	//Create the player
 
@@ -91,18 +131,14 @@ int main()
 	CONSOLE_FONT_INFOEX cfi;
 	cfi.cbSize = sizeof cfi;
 	cfi.nFont = 0;
-	cfi.dwFontSize.X = 13;
-	cfi.dwFontSize.Y = 13;
+	cfi.dwFontSize.X = textSize;
+	cfi.dwFontSize.Y = textSize;
 	cfi.FontFamily = FF_DONTCARE;
 	cfi.FontWeight = FW_NORMAL;
 
 	wcscpy_s(cfi.FaceName, L"Courier New");
 
 	SetCurrentConsoleFontEx(hConsole,0, &cfi);
-
-	//Get mouse
-
-	SetConsoleMode(hConsole, ENABLE_MOUSE_INPUT | ENABLE_EXTENDED_FLAGS);
 
 	// Create the different fields
 
@@ -117,20 +153,20 @@ int main()
 	for (int i = 0; i < nChatFieldWidth * nChatFieldHeight; i++) chatField[i] = L' ';*/
 	for (int i = 0; i < nGameMapWidth * nGameMapHeight; i++) map[i] = 0;
 
-	//Map construction
+	//Map construction============
 
-	ifstream fin("MapFeatures.csv", ios::in);
+	ifstream mfin("MapFeatures.csv", ios::in);
 
 	int objX, objY, objS;
 	string input, sX, sY, sS;
 
 	//Read from map features file. I literally set up my own "file type"
 
-	while (!fin.eof()) { //Until the end of the file has been reached.
-		getline(fin, input, ',');
-		getline(fin, sX, ','); //Position.x
-		getline(fin, sY, ','); //Position.y
-		getline(fin, sS, '\n'); //Size (in lines) of the following object
+	while (!mfin.eof()) { //Until the end of the file has been reached.
+		getline(mfin, input, ',');
+		getline(mfin, sX, ','); //Position.x
+		getline(mfin, sY, ','); //Position.y
+		getline(mfin, sS, '\n'); //Size (in lines) of the following object
 
 		//Assign integer values
 
@@ -139,36 +175,35 @@ int main()
 		objS = stoi(sS);
 
 		for (int i = 0; i < objS; i++) { //For every line of the object
-			getline(fin, input, '\n'); //Read the full line
+			getline(mfin, input, '\n'); //Read the full line
 			for (int j = 0; j < input.length(); j++) { //For every character in the line
 				map[(objY + i) * nGameMapWidth + objX + j] = (input[j] == '.') ? 0 : 1; //Add it to the map at (ObjectPosition.x + #line_we're_on, ObjectPosition.y + #character_we've_encountered)
 			}
 		}
 	}
 
-	fin.close(); // Close the file
+	mfin.close(); // Close the file
 
-	//Menu creation
+	//Main Menu creation===========
 
-	coords GUIPos{ 0,0 };
-	coords GUISize{ nScreenWidth,nScreenHeight };
+	GUIElement& mainMenu = GUIs[0];
 
-	GUIs.push_back(GUIElement("MainMenu", true, GUIPos, GUISize)); //Add a GUI Element to the vector.
-
-	GUIElement &mainMenu = GUIs[0]; //Set a shorthand for the mainMenu;
+	GUIElement& PauseMenu = GUIs[1];
 
 	//Variable creation
 
 	string n;
 	bool lost = false; //Checks if the player is alive or dead
 	bool pause = false; //Checks if the player has paused the game
+	bool menu = true;
 	bool bKey[5]; //All keys we need to check for constant input stored true if held
-	bool bMouse[2]; //Left click and Right click
-	bool type[36]; //All keys we need to check for being pressed. Stored true if pressed
+
+	bool type[39]; //All keys we need to check for being pressed. Stored true if held
+	bool keyHeld[39]; //All keys being held down
 
 	coords move{ 0,0 }; //Coordinates for player movement
+	coords ePos{ 0,0 };
 	coords plrPos{ 12,12 }; //The player's coordinates
-	coords mouse{ 0,0 }; //The mouse's position
 
 	INPUT_RECORD ir[128];
 	DWORD nRead;
@@ -177,6 +212,8 @@ int main()
 
 	cooldown enemySpawn{0};
 	
+
+
 	while (!lost) { //While the game is still "valid"
 
 		//GAME TIMING======================
@@ -187,65 +224,92 @@ int main()
 
 		//Keyboard input====
 
+		//For any key we need to consistently check is being pressed
+
 		for (int k = 0; k < 5; k++)
 			bKey[k] = (0x8000 & GetAsyncKeyState((unsigned char)(L"WASD\x10"[k]))) != 0; // 'w' 's' 'a' 'd' shift 
 
-		for (int k = 0; k < 36; k++)
-			type[k] = (0x0001 & GetAsyncKeyState((unsigned char)(L"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789\x20\x0d"[k]))) != 0; //alphabet numbers space enter
+		//For any key we need to check is pressed once.
 
-		//Mouse input====
-
-		ReadConsoleInput(hConsole, ir, 128, &nRead);
-		for (int i = 0; i < nRead; i++) {
-			if (ir[i].EventType == MOUSE_EVENT) {
-				bMouse[0] = (ir[i].Event.MouseEvent.dwButtonState & 0x01); // LMB
-				bMouse[1] = (ir[i].Event.MouseEvent.dwButtonState & 0x02); // RMB
-				mouse.x = ir[i].Event.MouseEvent.dwMousePosition.X; //Mouse position X
-				mouse.y = ir[i].Event.MouseEvent.dwMousePosition.Y; //Mouse position Y
-			}
+		for (int k = 0; k < 39; k++) {
+			keyHeld[k] = type[k]; //Check before so we get input at least once
+			type[k] = (0x8000 & GetAsyncKeyState((unsigned char)(L"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789\x20\x0d\x1b"[k]))) != 0; //alphabet numbers space enter escape
 		}
 
 		//GAME LOGIC=======================
 
-		plr.tick();
+		plrPos = plr.getPos(); //Re-check position each frame
+		int plrX = plrPos.x; //Get integer shorthands for EOA
+		int plrY = plrPos.y;
 
-		//During play====
-		
-		//Move the player
+		if (!menu) {
+			if (type[38] && !keyHeld[38]) pause = !pause;
 
-		move = { ((bKey[3]) ? 1 : 0) - ((bKey[1]) ? 1 : 0),((bKey[2]) ? 1 : 0) - ((bKey[0]) ? 1 : 0) };
-
-		if (plr.moveCool() <= 0) {
-			if (validMove(plrPos, move, 0)) {
-				plr.move(move, false);
+			if (pause && !keyHeld[38]) {
+				PauseMenu.toggleVisibility(true);
+			}
+			else if (!pause && !keyHeld[38]) {
+				PauseMenu.toggleVisibility(false);
 			}
 
-		}
-		
+			//The real game
 
-//TEMPORARY Enemy spawn every few seconds within 10 blocks of the player
+			if (!pause && !keyHeld[38]) {
 
-		/*if (enemySpawn.seconds <= 0) {
-			coords newL{ 0,0 };
-			do {
-				newL = { plr.getPos().x - 10 + rand() % 20, plr.getPos().y - 10 + rand() % 20 };
-			} while (!validMove(newL, coords{ 0,0 }));
-			enemies.push_back(Enemy(newL));
-			enemySpawn.seconds = 10;
+				plr.tick();
+
+				//During play====
+
+				//Move the player
+
+				move = { ((bKey[3]) ? 1 : 0) - ((bKey[1]) ? 1 : 0),((bKey[2]) ? 1 : 0) - ((bKey[0]) ? 1 : 0) };
+
+				if (plr.moveCool() <= 0.0) {
+					plr.move(validMove(plr.getPos(), move, false));
+				}
+
+				if (type[36] && plr.attackCool() <= 0.0) {
+
+				}
+
+				//TEMPORARY Enemy spawn every few seconds within 10 blocks of the player
+
+				if (enemySpawn.seconds <= 0) {
+					coords newL{ 0,0 };
+					newL = { plrX - 10 + (rand() % 20), plrY - 10 + (rand() % 20) };
+					enemies.push_back(Enemy(validMove(plrPos, newL, true)));
+					enemySpawn.seconds = 5.0;
+				}
+				else {
+					enemySpawn.seconds -= .05;
+				}
+			}
+			else { //If we're in the pause menu
+			if (type[4]) {
+				menu = true;
+				pause = false;
+				PauseMenu.toggleVisibility();
+				mainMenu.toggleVisibility(true);
+				continue;
+			}
+			}
 		}
 		else {
-			enemySpawn.seconds -= .05;
-		}*/
+		if (type[37]) {
+			menu = false;
+			mainMenu.toggleVisibility(false);
+			continue;
+		}
+		else if (type[38]) {
+			break;
+		}
+		}
 
 		//Check player interaction input
 
 		//During pause====
 
 		//RENDER OUTPUT====================
-
-		plrPos = plr.getPos(); //Re-check position each frame
-		int plrX = plrPos.x; //Get integer shorthands for EOA
-		int plrY = plrPos.y; 
 
 		//Draw stat field
 
@@ -254,7 +318,7 @@ int main()
 		//Draw side bar field
 
 			// Stuff goes here
-		
+
 		//Draw chat field
 
 			// Stuff goes here
@@ -283,7 +347,21 @@ int main()
 				//Then, we'll find which map pixel we want to draw, the player being the reference point. (follows a similar formula)
 				//The formula will be ( plr.x - half_screenWidth (beginning reference point) + index of how many pixels we are in, plr.y - half_screenHeight (beginning reference point) + index of how many pixels we are down )
 
-				screen[(y /* + nStatFieldHeight */ ) * nScreenWidth + x] = L" #"[map[(plrY - (nFieldHeight / 2) + y) * nGameMapHeight + plrX - (nFieldWidth / 2) + x]]; //Warning that map isn't initialized, but it's fine.
+				screen[(y /* + nStatFieldHeight */)*nScreenWidth + x] = L" #"[map[(plrY - (nFieldHeight / 2) + y) * nGameMapHeight + plrX - (nFieldWidth / 2) + x]]; //Warning that map isn't initialized, but it's fine.
+			}
+		}
+
+		//Draw the enemies
+
+		int eX,eY = 0;
+
+		for (int i = 0; i < enemies.size(); i++) {
+			Enemy& cE = enemies[i];
+			ePos = cE.getPos(); //Re-check position each frame
+			eX = ePos.x; //Get integer shorthands for EOA
+			eY = ePos.y;
+			if (eX - plrX + (nFieldWidth / 2) >= 0 || eX - plrX + (nFieldWidth / 2) <= 0 || eY - plrY + (nFieldHeight / 2)>= 0 || eY - plrY + (nFieldHeight / 2) <= 0) {
+				screen[(eY - plrY + nFieldHeight/2) * nScreenWidth + eX - plrX + nFieldWidth/2] = 'X';
 			}
 		}
 
@@ -293,9 +371,20 @@ int main()
 
 		//Render GUIElements last
 
-		for (int i = 0; i < GUIs.size(); i++) { //For each GUI element
+		for (int i = 0; i < 2; i++) { //For each GUI element
 			GUIElement& cGUI = GUIs[i];
-			if (cGUI.getVisibility()) { //If the GUI element is visible
+			if (GUIs[i].getVisibility()) { //If the GUI element is visible
+
+				//Create a backboard real fast
+
+				for (int a = 0; a < cGUI.getSize().y; a++) {
+					for (int b = 0; b < cGUI.getSize().x; b++) {
+						screen[(a + cGUI.getPos().y) * nScreenWidth + b + cGUI.getPos().x] = ' ';
+					}
+				}
+
+				//Render elements on the GUI
+
 				coords pos = cGUI.getPos();
 				coords size = cGUI.getSize();
 
@@ -311,9 +400,11 @@ int main()
 					getline(fin, sX, ','); //PosX
 					getline(fin, sY, ','); //PoxY
 					getline(fin, sS, '\n'); //Lines
+
 					objX = stoi(sX); //Integer-ize
 					objY = stoi(sY);
 					objS = stoi(sS);
+
 					for (int i = 0; i < objS; i++) { //For each line in the object
 						getline(fin, input, '\n'); //Get the object's display
 						for (int j = 0; j < input.length(); j++) { //For each character in the line

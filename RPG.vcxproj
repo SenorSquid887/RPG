@@ -148,6 +148,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="MapFeatures.csv" />
+    <None Include="PauseMenu.csv" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="MainMenu.csv" />

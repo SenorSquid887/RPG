@@ -14,6 +14,7 @@ public:
 	coords getSize();
 	bool getVisibility();
 	void toggleVisibility();
+	void toggleVisibility(bool);
 private:
 	string fileName;
 	bool visible;
@@ -39,4 +40,8 @@ bool GUIElement::getVisibility() {
 
 void GUIElement::toggleVisibility(){
 	visible = !visible;
+}
+
+void GUIElement::toggleVisibility(bool b) {
+	visible = b;
 }
